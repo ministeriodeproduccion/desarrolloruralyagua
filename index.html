@@ -360,7 +360,7 @@
         const PRECIO_POR_KG = 24.00;
         
         // ¡IMPORTANTE! Reemplaza esto con el nuevo enlace de tu Google Apps Script
-        const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbyK8psRDLZPtQi_yOPONAxdnRwG7Ym2aNgF6KmYRWb5r_1N00pLKUsjXsf-6JPy7_In/exec"; 
+        const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzvcOyqS-yNn4VsLXgQY9tjD8ucV-ZcFJzo1lx8SkAQDOHZC0NiwAP-3wdMwsGRe2F4/exec"; 
 
         function toggleChat() {
             const chat = document.getElementById('chatWindow');
@@ -478,14 +478,14 @@
             const btnConfirmar = document.getElementById('btnConfirmar');
             const originalBtnText = btnConfirmar.innerHTML;
             btnConfirmar.disabled = true;
-            btnConfirmar.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Subiendo imágenes...`;
+            btnConfirmar.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Procesando imágenes...`;
 
             try {
                 // 1. Obtener archivos
                 const fileAnverso = document.getElementById('fileAnverso').files[0];
                 const fileReverso = document.getElementById('fileReverso').files[0];
 
-                // 2. Comprimir y convertir las fotos (Soluciona el problema móvil)
+                // 2. Comprimir y convertir las fotos
                 let base64Anverso = null;
                 let base64Reverso = null;
                 
@@ -494,28 +494,32 @@
 
                 const totalCalc = (parseFloat(pesoSeleccionado) * PRECIO_POR_KG * parseInt(document.getElementById('cantidadSelect').value)).toFixed(2);
 
-                // 3. Crear el paquete JSON
-                const payload = {
-                    nombre: document.getElementById('nombreInput').value,
-                    ci: document.getElementById('ciInput').value,
-                    fechaNacimiento: document.getElementById('fechaNacInput').value,
-                    pesoPollo: pesoSeleccionado + " Kg",
-                    cantidad: document.getElementById('cantidadSelect').value,
-                    total: totalCalc + " Bs",
-                    anverso: base64Anverso,
-                    reverso: base64Reverso
-                };
-
                 btnConfirmar.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Guardando datos...`;
 
-                // 4. Enviar mediante un POST de texto simple (Evita problemas de CORS)
+                // 3. Crear el paquete en formato FormData pero enviando TEXTO en lugar de archivos puros
+                // Esto engaña al navegador para que pase sin problemas los datos hacia Google Sheets
+                const formData = new FormData();
+                formData.append('nombre', document.getElementById('nombreInput').value);
+                formData.append('ci', document.getElementById('ciInput').value);
+                formData.append('fechaNacimiento', document.getElementById('fechaNacInput').value);
+                formData.append('pesoPollo', pesoSeleccionado + " Kg");
+                formData.append('cantidad', document.getElementById('cantidadSelect').value);
+                formData.append('total', totalCalc + " Bs");
+
+                if (base64Anverso) {
+                    formData.append('anverso_b64', base64Anverso.data);
+                    formData.append('anverso_mime', base64Anverso.mimeType);
+                }
+                if (base64Reverso) {
+                    formData.append('reverso_b64', base64Reverso.data);
+                    formData.append('reverso_mime', base64Reverso.mimeType);
+                }
+
+                // 4. Enviar mediante POST
                 const response = await fetch(URL_GOOGLE_SCRIPT, {
                     method: 'POST',
-                    mode: 'no-cors', // Importante para que no sea bloqueado por el navegador
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8',
-                    },
-                    body: JSON.stringify(payload)
+                    mode: 'no-cors', // Fundamental para que no de error de CORS en navegadores
+                    body: formData
                 });
 
                 // Restaurar botón
@@ -530,8 +534,8 @@
                                 <i class="fas fa-check text-4xl text-green-500"></i>
                             </div>
                             <h2 class="text-2xl font-bold text-gray-800 mb-2">¡Reserva Exitosa!</h2>
-                            <p class="text-gray-600 mb-4">Los datos y fotos de identidad han sido guardados correctamente en la base de datos del <strong>MINISTERIO DE DESARROLLO PRODUCTIVO</strong>.</p>
-                            <p class="text-xs text-gray-500 mb-6">Presente su C.I. original al recoger su pedido en las oficinas MÓVILES.pida a su agente ubicaciones de las agencias moviles cercanas</p>
+                            <p class="text-gray-600 mb-4">Los datos y fotos de identidad han sido guardados correctamente en la base de datos del <strong>MINISTERIO DE DESARROLLO PRODUCTIVO - EDP SRL</strong>.</p>
+                            <p class="text-xs text-gray-500 mb-6">Presente su C.I. original al recoger su pedido en las oficinas MÓVILES consulte a su agente para mandar ubicacion de las agencias disponibles.</p>
                             <button onclick="document.getElementById('successModal').remove(); document.getElementById('reservaForm').reset(); document.getElementById('totalMonto').innerText='0.00 Bs'; document.getElementById('filenameAnverso').innerText='Haz clic para subir imagen'; document.getElementById('filenameReverso').innerText='Haz clic para subir imagen';" class="bg-emapa-purple text-white px-6 py-2 rounded-lg font-semibold hover:bg-emapa-purple_dark transition w-full">Entendido</button>
                         </div>
                     </div>
